@@ -2,59 +2,76 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>ComicScan</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
   :root{--ink:#0a0a0a;--paper:#f5f0e8;--accent:#e8320a;--accent2:#f5a623;--muted:#8a8070;--border:#d4cfc5;}
   *{box-sizing:border-box;margin:0;padding:0;}
   body{background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;min-height:100vh;}
-  header{padding:20px 24px 16px;display:flex;align-items:baseline;gap:12px;background:var(--ink);}
+  header{padding:18px 24px;display:flex;align-items:baseline;gap:12px;background:var(--ink);}
   header h1{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;letter-spacing:2px;color:var(--accent);}
   header span{font-family:'IBM Plex Mono',monospace;font-size:0.7rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
-  .container{max-width:600px;margin:0 auto;padding:20px 16px;}
-  .tabs{display:flex;border:2px solid var(--ink);border-radius:4px;overflow:hidden;margin-bottom:20px;}
+  .container{max-width:600px;margin:0 auto;padding:16px;}
+  .tabs{display:flex;border:2px solid var(--ink);border-radius:4px;overflow:hidden;margin-bottom:16px;}
   .tab{flex:1;padding:10px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:0.75rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;background:var(--paper);border:none;color:var(--muted);}
   .tab.active{background:var(--ink);color:var(--accent);}
   .panel{display:none;}.panel.active{display:block;}
 
-  .scanner-wrap{position:relative;width:100%;aspect-ratio:4/3;background:#111;border-radius:8px;overflow:hidden;margin-bottom:12px;}
+  /* SCANNER */
+  .scanner-wrap{position:relative;width:100%;aspect-ratio:4/3;background:#111;border-radius:8px;overflow:hidden;margin-bottom:10px;}
   #video{width:100%;height:100%;object-fit:cover;display:block;}
-  #canvas{display:none;}
-  .scan-corners{position:absolute;inset:0;pointer-events:none;}
+  .scan-ui{position:absolute;inset:0;pointer-events:none;display:none;}
   .scan-corners::before,.scan-corners::after{content:'';position:absolute;width:28%;height:28%;border-color:var(--accent2);border-style:solid;}
   .scan-corners::before{top:10%;left:10%;border-width:3px 0 0 3px;}
   .scan-corners::after{bottom:10%;right:10%;border-width:0 3px 3px 0;}
   .scan-line{position:absolute;left:12%;right:12%;height:2px;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:scanMove 2s ease-in-out infinite;}
   @keyframes scanMove{0%,100%{top:25%}50%{top:72%}}
-  .scanner-idle{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);}
-  .scanner-idle .icon{font-size:3rem;margin-bottom:12px;}
+  .scanner-idle{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);background:#111;}
+  .scanner-idle .icon{font-size:3rem;margin-bottom:10px;}
   .scanner-idle p{font-family:'IBM Plex Mono',monospace;font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;}
+  .zoom-wrap{margin-bottom:10px;display:none;}
+  .zoom-wrap label{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:4px;}
+  #zoom-slider{width:100%;accent-color:var(--accent);}
 
-  .btn{width:100%;padding:14px;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;border:none;border-radius:4px;cursor:pointer;margin-bottom:8px;}
+  .btn{width:100%;padding:13px;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;border:none;border-radius:4px;cursor:pointer;margin-bottom:8px;}
   .btn-primary{background:var(--accent);color:white;}
-  .fallback-box{background:white;border:2px dashed var(--border);border-radius:6px;padding:14px;margin-bottom:12px;}
-  .fallback-label{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+  .btn-secondary{background:var(--ink);color:var(--paper);}
+
+  .fallback-box{background:white;border:2px dashed var(--border);border-radius:6px;padding:12px;margin-bottom:10px;}
+  .fallback-label{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
   .fallback-row{display:flex;gap:8px;}
   .fallback-row input{flex:1;padding:9px 12px;border:2px solid var(--border);border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:0.85rem;}
   .fallback-row input:focus{outline:none;border-color:var(--accent);}
   .fallback-row button{padding:9px 16px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;cursor:pointer;}
+
+  /* AI SEARCH */
+  .ai-box{background:white;border:2px solid var(--accent2);border-radius:6px;padding:12px;margin-bottom:10px;}
+  .ai-label{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;color:var(--accent2);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+  .ai-label::before{content:'✦';font-size:0.8rem;}
+  .ai-box input{width:100%;padding:9px 12px;border:2px solid var(--border);border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:0.85rem;margin-bottom:8px;}
+  .ai-box input:focus{outline:none;border-color:var(--accent2);}
+  .ai-box button{width:100%;padding:10px;background:var(--accent2);color:var(--ink);border:none;border-radius:4px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;cursor:pointer;}
+
   .error-msg{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 14px;border-radius:4px;font-size:0.82rem;margin-bottom:10px;font-family:'IBM Plex Mono',monospace;}
   .info-msg{background:#f0fdf4;border:1px solid #86efac;color:#166534;padding:10px 14px;border-radius:4px;font-size:0.78rem;margin-bottom:10px;font-family:'IBM Plex Mono',monospace;}
-  .result-card{background:white;border:2px solid var(--ink);border-radius:8px;overflow:hidden;margin-top:12px;animation:slideUp 0.3s ease;}
+
+  .result-card{background:white;border:2px solid var(--ink);border-radius:8px;overflow:hidden;margin-top:10px;animation:slideUp 0.3s ease;}
   @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   .result-header{background:var(--ink);color:var(--accent2);padding:10px 14px;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;}
-  .result-body{padding:16px;}
+  .result-body{padding:14px;}
   .result-title{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:1px;line-height:1;margin-bottom:4px;}
-  .result-subtitle{font-size:0.85rem;color:var(--muted);margin-bottom:14px;font-style:italic;}
-  .result-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+  .result-subtitle{font-size:0.85rem;color:var(--muted);margin-bottom:12px;font-style:italic;}
+  .result-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
   .meta-item{background:var(--paper);border-radius:4px;padding:8px 10px;}
   .meta-label{font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:2px;}
   .meta-value{font-weight:600;font-size:0.85rem;}
-  .status-row{display:flex;gap:8px;margin-bottom:14px;}
+  .status-row{display:flex;gap:8px;margin-bottom:12px;}
   .status-btn{flex:1;padding:8px;border:2px solid var(--border);border-radius:4px;background:white;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;color:var(--muted);}
   .status-btn.selected{border-color:var(--accent);background:var(--accent);color:white;}
   .add-btn{width:100%;padding:12px;background:var(--accent);color:white;border:none;border-radius:4px;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;cursor:pointer;}
+
+  /* COLLECTION */
   .collection-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
   .collection-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:1px;}
   .count-badge{background:var(--accent);color:white;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;font-weight:600;padding:3px 8px;border-radius:20px;}
@@ -76,6 +93,11 @@
   .input-group label{display:block;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
   .input-group input{width:100%;padding:10px 12px;border:2px solid var(--border);border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:0.9rem;background:white;}
   .input-group input:focus{outline:none;border-color:var(--accent);}
+  .thinking{display:flex;align-items:center;gap:10px;padding:14px;background:white;border:2px solid var(--accent2);border-radius:8px;font-family:'IBM Plex Mono',monospace;font-size:0.78rem;color:var(--muted);margin-top:10px;}
+  .thinking-dots span{display:inline-block;animation:blink 1.2s infinite;margin:0 1px;}
+  .thinking-dots span:nth-child(2){animation-delay:0.2s;}
+  .thinking-dots span:nth-child(3){animation-delay:0.4s;}
+  @keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
 </style>
 </head>
 <body>
@@ -90,11 +112,12 @@
     <button class="tab" onclick="switchTab('collection')">📚 Collection</button>
   </div>
 
+  <!-- SCAN TAB -->
   <div class="panel active" id="panel-scan">
-    <div class="scanner-wrap">
+    <div class="scanner-wrap" id="scanner-wrap">
       <video id="video" autoplay playsinline muted></video>
-      <canvas id="canvas"></canvas>
-      <div class="scan-corners" id="scan-corners" style="display:none;">
+      <div class="scan-ui" id="scan-ui">
+        <div class="scan-corners"></div>
         <div class="scan-line"></div>
       </div>
       <div class="scanner-idle" id="scanner-idle">
@@ -102,29 +125,51 @@
         <p>Tap Start to scan</p>
       </div>
     </div>
+
+    <div class="zoom-wrap" id="zoom-wrap">
+      <label>Zoom: <span id="zoom-val">1x</span></label>
+      <input type="range" id="zoom-slider" min="1" max="4" step="0.1" value="1" oninput="setZoom(this.value)">
+    </div>
+
     <button class="btn btn-primary" id="scan-btn" onclick="toggleScanner()">START SCANNING</button>
     <div id="scan-status" class="info-msg" style="display:none;"></div>
+
     <div class="fallback-box">
-      <div class="fallback-label">📝 Or type the barcode number</div>
+      <div class="fallback-label">📝 Type barcode number</div>
       <div class="fallback-row">
         <input type="text" id="fallback-input" placeholder="e.g. 9780785134578" inputmode="numeric">
         <button onclick="lookupFallback()">GO</button>
       </div>
     </div>
+
+    <div class="ai-box">
+      <div class="ai-label">AI Lookup — single issues & anything else</div>
+      <input type="text" id="ai-input" placeholder="e.g. Amazing Spider-Man #300, 1988">
+      <button onclick="aiLookup()">ASK CLAUDE</button>
+    </div>
+
     <div id="scan-error" class="error-msg" style="display:none;"></div>
     <div id="scan-result"></div>
   </div>
 
+  <!-- MANUAL TAB -->
   <div class="panel" id="panel-manual">
     <div class="input-group">
-      <label>ISBN / Barcode Number</label>
+      <label>ISBN / Barcode</label>
       <input type="text" id="manual-isbn" placeholder="9780785134578" inputmode="numeric">
     </div>
-    <button class="btn btn-primary" onclick="lookupManual()">LOOK UP</button>
+    <button class="btn btn-primary" onclick="lookupManual()">LOOK UP ISBN</button>
+    <div style="height:1px;background:var(--border);margin:16px 0;"></div>
+    <div class="ai-box">
+      <div class="ai-label">AI Lookup — title + issue number</div>
+      <input type="text" id="ai-manual-input" placeholder="e.g. X-Men #1, 1991 — Jim Lee">
+      <button onclick="aiLookupManual()">ASK CLAUDE</button>
+    </div>
     <div id="manual-error" class="error-msg" style="display:none;"></div>
     <div id="manual-result"></div>
   </div>
 
+  <!-- COLLECTION TAB -->
   <div class="panel" id="panel-collection">
     <div class="collection-header">
       <div class="collection-title">My Collection</div>
@@ -139,16 +184,18 @@
 <div class="toast" id="toast"></div>
 
 <script>
-let collection = JSON.parse(localStorage.getItem('comicscan_v4') || '[]');
+// ── STATE ──────────────────────────────────────────────────────────────────
+let collection = JSON.parse(localStorage.getItem('comicscan_v5') || '[]');
 let scannerRunning = false;
-let stream = null;
+let videoStream = null;
 let scanInterval = null;
-let detector = null;
+let videoTrack = null;
 let pendingResult = null;
 let selectedStatus = 'owned';
 
-function saveCollection(){ localStorage.setItem('comicscan_v4', JSON.stringify(collection)); }
+function saveCollection(){ localStorage.setItem('comicscan_v5', JSON.stringify(collection)); }
 
+// ── TABS ───────────────────────────────────────────────────────────────────
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['scan','manual','collection'][i]===tab));
   document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('active',['panel-scan','panel-manual','panel-collection'][i]===`panel-${tab}`));
@@ -156,122 +203,238 @@ function switchTab(tab){
   if(tab!=='scan' && scannerRunning) stopScanner();
 }
 
-async function toggleScanner(){
-  scannerRunning ? stopScanner() : startScanner();
-}
+// ── SCANNER ────────────────────────────────────────────────────────────────
+async function toggleScanner(){ scannerRunning ? stopScanner() : startScanner(); }
 
 async function startScanner(){
   document.getElementById('scan-error').style.display='none';
   document.getElementById('scan-btn').textContent='STOP SCANNING';
   document.getElementById('scanner-idle').style.display='none';
-  document.getElementById('scan-corners').style.display='block';
-  setStatus('Point camera at barcode...');
-
-  // Check for BarcodeDetector support
-  if(!('BarcodeDetector' in window)){
-    stopScanner();
-    showError('Your browser does not support native barcode detection. Please use the type-in box below.');
-    return;
-  }
+  document.getElementById('scan-ui').style.display='block';
+  setStatus('Point camera at barcode — tap screen to focus');
 
   try {
-    detector = new BarcodeDetector({
-      formats: ['ean_13','ean_8','upc_a','upc_e','isbn','code_128','code_39','qr_code']
-    });
-  } catch(e) {
-    detector = new BarcodeDetector();
-  }
-
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    videoStream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:'environment', width:{ideal:1920}, height:{ideal:1080} }
     });
     const video = document.getElementById('video');
-    video.srcObject = stream;
+    video.srcObject = videoStream;
     await video.play();
     scannerRunning = true;
 
-    // Poll for barcodes
-    scanInterval = setInterval(async () => {
-      if(!scannerRunning) return;
-      try {
-        const barcodes = await detector.detect(video);
-        if(barcodes.length > 0){
-          const code = barcodes[0].rawValue;
-          if(code && code.length >= 8){
-            stopScanner();
-            lookupISBN(code, document.getElementById('scan-result'), document.getElementById('scan-error'));
-          }
-        }
-      } catch(e){}
-    }, 300);
+    // Get track for zoom/focus
+    videoTrack = videoStream.getVideoTracks()[0];
 
-  } catch(e) {
+    // Show zoom if supported
+    const caps = videoTrack.getCapabilities?.() || {};
+    if(caps.zoom){
+      const zoomSlider = document.getElementById('zoom-slider');
+      zoomSlider.min = caps.zoom.min;
+      zoomSlider.max = caps.zoom.max;
+      zoomSlider.step = caps.zoom.step || 0.1;
+      zoomSlider.value = caps.zoom.min;
+      document.getElementById('zoom-wrap').style.display='block';
+    }
+
+    // Tap to focus
+    document.getElementById('scanner-wrap').addEventListener('click', tapToFocus);
+
+    // Try BarcodeDetector first
+    if('BarcodeDetector' in window){
+      setStatus('Scanning with native detector...');
+      let bd;
+      try{ bd = new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','isbn']}); }
+      catch(e){ bd = new BarcodeDetector(); }
+      scanInterval = setInterval(async()=>{
+        if(!scannerRunning) return;
+        try{
+          const codes = await bd.detect(video);
+          if(codes.length > 0){
+            const code = codes[0].rawValue;
+            if(code && code.length >= 8){ stopScanner(); lookupISBN(code, document.getElementById('scan-result'), document.getElementById('scan-error')); }
+          }
+        }catch(e){}
+      }, 300);
+    } else {
+      // Fallback: ZXing via canvas sampling
+      setStatus('Scanning... hold barcode steady');
+      loadZXingAndScan(video);
+    }
+
+  } catch(e){
     stopScanner();
-    showError('Camera access denied. Check Safari Settings → Camera, or use the type-in box below.');
+    showScanError('Camera access denied. Check Settings → Safari → Camera, or use the boxes below.');
   }
+}
+
+// Inline ZXing fallback using canvas + image data
+function loadZXingAndScan(video){
+  const script = document.createElement('script');
+  script.src = 'https://unpkg.com/@zxing/browser@0.1.4/umd/index.min.js';
+  script.onload = () => {
+    const hints = new Map();
+    hints.set(2, ['EAN_13','EAN_8','UPC_A','UPC_E','CODE_128','ISBN']);
+    const reader = new ZXingBrowser.BrowserMultiFormatReader(hints);
+    const canvas = document.createElement('canvas');
+    canvas.width = 640; canvas.height = 480;
+    const ctx = canvas.getContext('2d');
+    scanInterval = setInterval(async()=>{
+      if(!scannerRunning) return;
+      try{
+        ctx.drawImage(video, 0, 0, 640, 480);
+        const imgData = canvas.toDataURL('image/jpeg', 0.8);
+        const img = new Image();
+        img.src = imgData;
+        img.onload = async() => {
+          try{
+            const result = await reader.decodeFromImageElement(img);
+            if(result){ stopScanner(); lookupISBN(result.getText(), document.getElementById('scan-result'), document.getElementById('scan-error')); }
+          }catch(e){}
+        };
+      }catch(e){}
+    }, 500);
+  };
+  script.onerror = () => setStatus('Scanner unavailable — use type-in or AI lookup below');
+  document.head.appendChild(script);
 }
 
 function stopScanner(){
   scannerRunning = false;
-  if(scanInterval){ clearInterval(scanInterval); scanInterval = null; }
-  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; }
+  if(scanInterval){ clearInterval(scanInterval); scanInterval=null; }
+  if(videoStream){ videoStream.getTracks().forEach(t=>t.stop()); videoStream=null; }
+  videoTrack = null;
   const video = document.getElementById('video');
   video.srcObject = null;
   document.getElementById('scanner-idle').style.display='flex';
-  document.getElementById('scan-corners').style.display='none';
+  document.getElementById('scan-ui').style.display='none';
   document.getElementById('scan-btn').textContent='START SCANNING';
+  document.getElementById('zoom-wrap').style.display='none';
+  document.getElementById('zoom-slider').value=1;
+  document.getElementById('zoom-val').textContent='1x';
   setStatus('');
+  document.getElementById('scanner-wrap').removeEventListener('click', tapToFocus);
+}
+
+function setZoom(val){
+  document.getElementById('zoom-val').textContent = parseFloat(val).toFixed(1)+'x';
+  if(videoTrack){
+    try{ videoTrack.applyConstraints({advanced:[{zoom:parseFloat(val)}]}); }catch(e){}
+  }
+}
+
+async function tapToFocus(e){
+  if(!videoTrack) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / rect.width;
+  const y = (e.clientY - rect.top) / rect.height;
+  try{
+    await videoTrack.applyConstraints({advanced:[{pointOfInterest:{x,y},focusMode:'single-shot'}]});
+  }catch(err){}
 }
 
 function setStatus(msg){
-  const el = document.getElementById('scan-status');
-  if(msg){ el.textContent=msg; el.style.display='block'; }
-  else { el.style.display='none'; }
+  const el=document.getElementById('scan-status');
+  if(msg){el.textContent=msg;el.style.display='block';}
+  else{el.style.display='none';}
 }
 
-function showError(msg){
-  const el = document.getElementById('scan-error');
-  el.textContent = msg;
-  el.style.display = 'block';
+function showScanError(msg){
+  const el=document.getElementById('scan-error');
+  el.textContent=msg; el.style.display='block';
 }
 
+// ── ISBN LOOKUP ────────────────────────────────────────────────────────────
 async function lookupISBN(isbn, resultEl, errorEl){
   errorEl.style.display='none';
   resultEl.innerHTML='<div style="padding:20px;text-align:center;font-family:IBM Plex Mono,monospace;font-size:0.75rem;color:#8a8070;letter-spacing:1px;">LOOKING UP...</div>';
 
-  try {
-    const res = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
-    const data = await res.json();
-    const key = `ISBN:${isbn}`;
+  // Open Library
+  try{
+    const res=await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
+    const data=await res.json();
+    const key=`ISBN:${isbn}`;
     if(data[key]){
-      const b = data[key];
-      setResult({title:b.title||'Unknown',subtitle:b.subtitle||'',publisher:b.publishers?.[0]?.name||'Unknown',date:b.publish_date||'Unknown',authors:b.authors?.map(a=>a.name).join(', ')||'Unknown',isbn,cover:b.cover?.medium||null,subjects:b.subjects?.slice(0,3).map(s=>s.name).join(', ')||''}, resultEl);
+      const b=data[key];
+      setResult({title:b.title||'Unknown',subtitle:b.subtitle||'',publisher:b.publishers?.[0]?.name||'Unknown',date:b.publish_date||'Unknown',authors:b.authors?.map(a=>a.name).join(', ')||'Unknown',isbn,cover:b.cover?.medium||null,subjects:b.subjects?.slice(0,3).map(s=>s.name).join(', ')||'',source:'Open Library'},resultEl);
       return;
     }
-  } catch(e){}
+  }catch(e){}
 
-  try {
-    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
-    const data = await res.json();
-    if(data.totalItems > 0){
-      const v = data.items[0].volumeInfo;
-      setResult({title:v.title||'Unknown',subtitle:v.subtitle||'',publisher:v.publisher||'Unknown',date:v.publishedDate||'Unknown',authors:v.authors?.join(', ')||'Unknown',isbn,cover:v.imageLinks?.thumbnail||null,subjects:v.categories?.join(', ')||''}, resultEl);
+  // Google Books
+  try{
+    const res=await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+    const data=await res.json();
+    if(data.totalItems>0){
+      const v=data.items[0].volumeInfo;
+      setResult({title:v.title||'Unknown',subtitle:v.subtitle||'',publisher:v.publisher||'Unknown',date:v.publishedDate||'Unknown',authors:v.authors?.join(', ')||'Unknown',isbn,cover:v.imageLinks?.thumbnail||null,subjects:v.categories?.join(', ')||'',source:'Google Books'},resultEl);
       return;
     }
-  } catch(e){}
+  }catch(e){}
 
+  // Nothing found — suggest AI lookup
   resultEl.innerHTML='';
-  errorEl.textContent=`No data found for "${isbn}". Try the number printed near the barcode.`;
+  errorEl.innerHTML='Barcode not found in book databases. <strong>Try the AI Lookup below</strong> — type the title and issue number.';
   errorEl.style.display='block';
 }
 
+// ── AI LOOKUP ──────────────────────────────────────────────────────────────
+async function aiLookup(){ await doAILookup(document.getElementById('ai-input').value, document.getElementById('scan-result'), document.getElementById('scan-error')); }
+async function aiLookupManual(){ await doAILookup(document.getElementById('ai-manual-input').value, document.getElementById('manual-result'), document.getElementById('manual-error')); }
+
+async function doAILookup(query, resultEl, errorEl){
+  if(!query.trim()) return;
+  errorEl.style.display='none';
+  resultEl.innerHTML=`<div class="thinking">✦ Claude is looking up "${query}"<div class="thinking-dots"><span>.</span><span>.</span><span>.</span></div></div>`;
+
+  const prompt = `You are a comic book database assistant. The user wants to add a comic to their collection.
+
+User query: "${query}"
+
+Return ONLY a JSON object (no markdown, no explanation) with these exact fields:
+{
+  "title": "Full series title",
+  "issue": "Issue number or volume info",
+  "publisher": "Publisher name",
+  "date": "Cover date or publication year",
+  "authors": "Writer(s) and artist(s)",
+  "isbn": "ISBN or UPC if known, otherwise empty string",
+  "subjects": "Genre tags, comma separated",
+  "subtitle": "Story arc or subtitle if applicable"
+}
+
+If you don't know something, use "Unknown". Always return valid JSON.`;
+
+  try{
+    const response = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:500,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+    const clean = text.replace(/```json|```/g,'').trim();
+    const info = JSON.parse(clean);
+    info.cover = null;
+    info.source = 'Claude AI';
+    info.title = info.issue ? `${info.title} #${info.issue}` : info.title;
+    setResult(info, resultEl);
+  }catch(e){
+    resultEl.innerHTML='';
+    errorEl.textContent='AI lookup failed. Try being more specific, e.g. "Amazing Spider-Man #300 1988 McFarlane"';
+    errorEl.style.display='block';
+  }
+}
+
+// ── RESULT CARD ────────────────────────────────────────────────────────────
 function setResult(info, container){
-  pendingResult = info;
-  selectedStatus = 'owned';
+  pendingResult=info; selectedStatus='owned';
   container.innerHTML=`
     <div class="result-card">
-      <div class="result-header">✅ Match Found</div>
+      <div class="result-header">✅ ${info.source || 'Match Found'}</div>
       <div class="result-body">
         ${info.cover?`<img src="${info.cover}" style="float:right;width:70px;margin-left:12px;border-radius:3px;" onerror="this.style.display='none'">` : ''}
         <div class="result-title">${info.title}</div>
@@ -280,14 +443,14 @@ function setResult(info, container){
           <div class="meta-item"><div class="meta-label">Publisher</div><div class="meta-value">${info.publisher}</div></div>
           <div class="meta-item"><div class="meta-label">Date</div><div class="meta-value">${info.date}</div></div>
           <div class="meta-item"><div class="meta-label">Authors</div><div class="meta-value">${info.authors}</div></div>
-          <div class="meta-item"><div class="meta-label">ISBN</div><div class="meta-value" style="font-family:monospace;font-size:0.75rem;">${info.isbn}</div></div>
+          <div class="meta-item"><div class="meta-label">ISBN/UPC</div><div class="meta-value" style="font-family:monospace;font-size:0.75rem;">${info.isbn||'—'}</div></div>
         </div>
-        <div style="margin-bottom:8px;">
+        <div style="margin-bottom:10px;">
           <div style="font-family:IBM Plex Mono,monospace;font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;color:#8a8070;margin-bottom:6px;">Status</div>
           <div class="status-row">
-            <button class="status-btn selected" id="sb-owned" onclick="setStatus_item('owned')">Owned</button>
-            <button class="status-btn" id="sb-read" onclick="setStatus_item('read')">Read</button>
-            <button class="status-btn" id="sb-wishlist" onclick="setStatus_item('wishlist')">Wishlist</button>
+            <button class="status-btn selected" id="sb-owned" onclick="setStatusItem('owned')">Owned</button>
+            <button class="status-btn" id="sb-read" onclick="setStatusItem('read')">Read</button>
+            <button class="status-btn" id="sb-wishlist" onclick="setStatusItem('wishlist')">Wishlist</button>
           </div>
         </div>
         <button class="add-btn" onclick="addToCollection()">ADD TO COLLECTION</button>
@@ -295,49 +458,50 @@ function setResult(info, container){
     </div>`;
 }
 
-function setStatus_item(s){
+function setStatusItem(s){
   selectedStatus=s;
   ['owned','read','wishlist'].forEach(x=>document.getElementById(`sb-${x}`)?.classList.toggle('selected',x===s));
 }
 
 function addToCollection(){
   if(!pendingResult) return;
-  if(collection.find(c=>c.isbn===pendingResult.isbn)){ showToast('Already in collection!'); return; }
+  const id = pendingResult.isbn || pendingResult.title;
+  if(collection.find(c=>(c.isbn||c.title)===id)){ showToast('Already in collection!'); return; }
   collection.unshift({...pendingResult,status:selectedStatus,added:new Date().toLocaleDateString()});
   saveCollection();
   showToast(`Added: ${pendingResult.title}`);
   pendingResult=null;
-  document.getElementById('scan-result').innerHTML='';
-  document.getElementById('manual-result').innerHTML='';
-  document.getElementById('manual-isbn').value='';
-  document.getElementById('fallback-input').value='';
+  ['scan-result','manual-result'].forEach(id=>document.getElementById(id).innerHTML='');
+  ['fallback-input','manual-isbn','ai-input','ai-manual-input'].forEach(id=>document.getElementById(id).value='');
   updateBadge();
 }
 
+// ── MANUAL LOOKUP ──────────────────────────────────────────────────────────
 function lookupFallback(){
   const v=document.getElementById('fallback-input').value.trim().replace(/\D/g,'');
   if(!v) return;
   lookupISBN(v,document.getElementById('scan-result'),document.getElementById('scan-error'));
 }
-
 function lookupManual(){
   const v=document.getElementById('manual-isbn').value.trim().replace(/[-\s]/g,'');
   if(!v) return;
   lookupISBN(v,document.getElementById('manual-result'),document.getElementById('manual-error'));
 }
-
 document.getElementById('manual-isbn').addEventListener('keydown',e=>{if(e.key==='Enter')lookupManual();});
 document.getElementById('fallback-input').addEventListener('keydown',e=>{if(e.key==='Enter')lookupFallback();});
+document.getElementById('ai-input').addEventListener('keydown',e=>{if(e.key==='Enter')aiLookup();});
+document.getElementById('ai-manual-input').addEventListener('keydown',e=>{if(e.key==='Enter')aiLookupManual();});
 
+// ── COLLECTION ─────────────────────────────────────────────────────────────
 function renderCollection(){
   const el=document.getElementById('collection-list');
   updateBadge();
   if(!collection.length){el.innerHTML='<div class="empty-state"><div class="big">📚</div><p>No comics yet</p></div>';return;}
   el.innerHTML=collection.map((c,i)=>`
     <div class="comic-item ${c.status}">
-      <div>
+      <div style="min-width:0;">
         <div class="comic-item-title">${c.title}</div>
-        <div class="comic-item-meta">${c.authors} · ${c.date} · Added ${c.added}</div>
+        <div class="comic-item-meta">${c.authors||''} · ${c.date||''} · Added ${c.added}</div>
       </div>
       <div style="display:flex;align-items:center;flex-shrink:0;margin-left:8px;">
         <span class="status-pill ${c.status}">${c.status}</span>
@@ -351,12 +515,11 @@ function updateBadge(){document.getElementById('count-badge').textContent=collec
 
 function exportCSV(){
   if(!collection.length){showToast('Nothing to export yet!');return;}
-  const rows=collection.map(c=>[`"${c.title}"`,`"${c.authors}"`,`"${c.publisher}"`,`"${c.date}"`,c.isbn,c.status,c.added,`"${c.subjects||''}"`].join(','));
+  const rows=collection.map(c=>[`"${c.title}"`,`"${c.authors||''}"`,`"${c.publisher||''}"`,`"${c.date||''}"`,c.isbn||'',c.status,c.added,`"${c.subjects||''}"`].join(','));
   const csv=['Title,Authors,Publisher,Date,ISBN,Status,Added,Subjects',...rows].join('\n');
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download='comics_collection.csv';
-  a.click();
+  a.download='comics_collection.csv';a.click();
   showToast('CSV exported!');
 }
 
