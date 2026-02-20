@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ComicScan</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+  :root{--ink:#0a0a0a;--paper:#f5f0e8;--accent:#e8320a;--accent2:#f5a623;--muted:#8a8070;--border:#d4cfc5;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;min-height:100vh;}
+  header{padding:20px 24px 16px;display:flex;align-items:baseline;gap:12px;background:var(--ink);}
+  header h1{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;letter-spacing:2px;color:var(--accent);}
+  header span{font-family:'IBM Plex Mono',monospace;font-size:0.7rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+  .container{max-width:600px;margin:0 auto;padding:20px 16px;}
+  .tabs{display:flex;border:2px solid var(--ink);border-radius:4px;overflow:hidden;margin-bottom:20px;}
+  .tab{flex:1;padding:10px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:0.75rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;background:var(--paper);border:none;color:var(--muted);}
+  .tab.active{background:var(--ink);color:var(--accent);}
+  .panel{display:none;}.panel.active{display:block;}
+
+  #reader{width:100%;border-radius:8px;overflow:hidden;margin-bottom:12px;}
+  #reader video{border-radius:8px;}
+
+  .btn{width:100%;padding:14px;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;border:none;border-radius:4px;cursor:pointer;margin-bottom:8px;}
+  .btn-primary{background:var(--accent);color:white;}
+  .btn-secondary{background:var(--ink);color:var(--paper);}
+
+  .fallback-box{background:white;border:2px dashed var(--border);border-radius:6px;padding:14px;margin-bottom:12px;}
+  .fallback-label{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+  .fallback-row{display:flex;gap:8px;}
+  .fallback-row input{flex:1;padding:9px 12px;border:2px solid var(--border);border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:0.85rem;}
+  .fallback-row input:focus{outline:none;border-color:var(--accent);}
+  .fallback-row button{padding:9px 16px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;cursor:pointer;}
+
+  .error-msg{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 14px;border-radius:4px;font-size:0.82rem;margin-bottom:10px;font-family:'IBM Plex Mono',monospace;}
+  .info-msg{background:#f0fdf4;border:1px solid #86efac;color:#166534;padding:10px 14px;border-radius:4px;font-size:0.78rem;margin-bottom:10px;font-family:'IBM Plex Mono',monospace;}
+
+  .result-card{background:white;border:2px solid var(--ink);border-radius:8px;overflow:hidden;margin-top:12px;animation:slideUp 0.3s ease;}
+  @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  .result-header{background:var(--ink);color:var(--accent2);padding:10px 14px;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;}
+  .result-body{padding:16px;}
+  .result-title{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:1px;line-height:1;margin-bottom:4px;}
+  .result-subtitle{font-size:0.85rem;color:var(--muted);margin-bottom:14px;font-style:italic;}
+  .result-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+  .meta-item{background:var(--paper);border-radius:4px;padding:8px 10px;}
+  .meta-label{font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:2px;}
+  .meta-value{font-weight:600;font-size:0.85rem;}
+  .status-row{display:flex;gap:8px;margin-bottom:14px;}
+  .status-btn{flex:1;padding:8px;border:2px solid var(--border);border-radius:4px;background:white;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;color:var(--muted);}
+  .status-btn.selected{border-color:var(--accent);background:var(--accent);color:white;}
+  .add-btn{width:100%;padding:12px;background:var(--accent);color:white;border:none;border-radius:4px;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;cursor:pointer;}
+
+  .collection-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+  .collection-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:1px;}
+  .count-badge{background:var(--accent);color:white;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;font-weight:600;padding:3px 8px;border-radius:20px;}
+  .export-btn{padding:8px 16px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;}
+  .comic-item{background:white;border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:4px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start;}
+  .comic-item.read{border-left-color:#22c55e;}.comic-item.wishlist{border-left-color:var(--accent2);}
+  .comic-item-title{font-weight:600;font-size:0.9rem;margin-bottom:2px;}
+  .comic-item-meta{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;color:var(--muted);}
+  .status-pill{font-family:'IBM Plex Mono',monospace;font-size:0.6rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:3px 7px;border-radius:20px;white-space:nowrap;}
+  .status-pill.owned{background:#dcfce7;color:#166534;}.status-pill.read{background:#bbf7d0;color:#14532d;}.status-pill.wishlist{background:#fef3c7;color:#92400e;}
+  .empty-state{text-align:center;padding:40px 20px;color:var(--muted);}
+  .empty-state .big{font-size:2.5rem;margin-bottom:8px;}
+  .empty-state p{font-family:'IBM Plex Mono',monospace;font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;}
+  .delete-btn{background:none;border:none;color:var(--border);cursor:pointer;font-size:1rem;padding:2px 4px;margin-left:8px;}
+  .delete-btn:hover{color:var(--accent);}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:var(--accent2);padding:10px 20px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:0.8rem;font-weight:600;letter-spacing:1px;transition:transform 0.3s ease;z-index:100;white-space:nowrap;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+  .input-group{margin-bottom:12px;}
+  .input-group label{display:block;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+  .input-group input{width:100%;padding:10px 12px;border:2px solid var(--border);border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:0.9rem;background:white;}
+  .input-group input:focus{outline:none;border-color:var(--accent);}
+</style>
+</head>
+<body>
+<header>
+  <h1>ComicScan</h1>
+  <span>Collection Tracker</span>
+</header>
+<div class="container">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('scan')">📷 Scan</button>
+    <button class="tab" onclick="switchTab('manual')">✏️ Manual</button>
+    <button class="tab" onclick="switchTab('collection')">📚 Collection</button>
+  </div>
+
+  <!-- SCAN -->
+  <div class="panel active" id="panel-scan">
+    <div id="reader"></div>
+    <button class="btn btn-primary" id="scan-btn" onclick="toggleScanner()">START SCANNING</button>
+    <div id="scan-status" class="info-msg" style="display:none;"></div>
+    <div class="fallback-box">
+      <div class="fallback-label">📝 Or type the barcode number</div>
+      <div class="fallback-row">
+        <input type="text" id="fallback-input" placeholder="e.g. 9780785134578" inputmode="numeric">
+        <button onclick="lookupFallback()">GO</button>
+      </div>
+    </div>
+    <div id="scan-error" class="error-msg" style="display:none;"></div>
+    <div id="scan-result"></div>
+  </div>
+
+  <!-- MANUAL -->
+  <div class="panel" id="panel-manual">
+    <div class="input-group">
+      <label>ISBN / Barcode Number</label>
+      <input type="text" id="manual-isbn" placeholder="9780785134578" inputmode="numeric">
+    </div>
+    <button class="btn btn-primary" onclick="lookupManual()">LOOK UP</button>
+    <div id="manual-error" class="error-msg" style="display:none;"></div>
+    <div id="manual-result"></div>
+  </div>
+
+  <!-- COLLECTION -->
+  <div class="panel" id="panel-collection">
+    <div class="collection-header">
+      <div class="collection-title">My Collection</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span class="count-badge" id="count-badge">0</span>
+        <button class="export-btn" onclick="exportCSV()">Export CSV</button>
+      </div>
+    </div>
+    <div id="collection-list"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let collection = JSON.parse(localStorage.getItem('comicscan_v3') || '[]');
+let scanner = null;
+let scannerRunning = false;
+let pendingResult = null;
+let selectedStatus = 'owned';
+
+function saveCollection(){ localStorage.setItem('comicscan_v3', JSON.stringify(collection)); }
+
+function switchTab(tab){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['scan','manual','collection'][i]===tab));
+  document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('active',['panel-scan','panel-manual','panel-collection'][i]===`panel-${tab}`));
+  if(tab==='collection') renderCollection();
+  if(tab!=='scan' && scannerRunning) stopScanner();
+}
+
+async function toggleScanner(){
+  scannerRunning ? stopScanner() : startScanner();
+}
+
+async function startScanner(){
+  document.getElementById('scan-btn').textContent = 'STOP SCANNING';
+  document.getElementById('scan-error').style.display = 'none';
+  setStatus_scan('Scanning — hold barcode steady in frame...');
+
+  try {
+    scanner = new Html5Qrcode("reader");
+    await scanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 280, height: 140 } },
+      (decodedText) => {
+        stopScanner();
+        lookupISBN(decodedText, document.getElementById('scan-result'), document.getElementById('scan-error'));
+      },
+      (err) => { /* ignore frame errors */ }
+    );
+    scannerRunning = true;
+  } catch(e) {
+    document.getElementById('scan-btn').textContent = 'START SCANNING';
+    setStatus_scan('');
+    const el = document.getElementById('scan-error');
+    el.textContent = 'Could not access camera. Make sure you allowed camera permission in Safari, or use the type-in box below.';
+    el.style.display = 'block';
+  }
+}
+
+async function stopScanner(){
+  if(scanner && scannerRunning){
+    try{ await scanner.stop(); } catch(e){}
+    try{ scanner.clear(); } catch(e){}
+    scanner = null;
+  }
+  scannerRunning = false;
+  document.getElementById('scan-btn').textContent = 'START SCANNING';
+  setStatus_scan('');
+}
+
+function setStatus_scan(msg){
+  const el = document.getElementById('scan-status');
+  if(msg){ el.textContent = msg; el.style.display = 'block'; }
+  else { el.style.display = 'none'; }
+}
+
+async function lookupISBN(isbn, resultEl, errorEl){
+  errorEl.style.display = 'none';
+  resultEl.innerHTML = '<div style="padding:20px;text-align:center;font-family:IBM Plex Mono,monospace;font-size:0.75rem;color:#8a8070;letter-spacing:1px;">LOOKING UP...</div>';
+
+  // Open Library
+  try {
+    const res = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
+    const data = await res.json();
+    const key = `ISBN:${isbn}`;
+    if(data[key]){
+      const b = data[key];
+      setResult({title:b.title||'Unknown',subtitle:b.subtitle||'',publisher:b.publishers?.[0]?.name||'Unknown',date:b.publish_date||'Unknown',authors:b.authors?.map(a=>a.name).join(', ')||'Unknown',isbn,cover:b.cover?.medium||null,subjects:b.subjects?.slice(0,3).map(s=>s.name).join(', ')||''}, resultEl);
+      return;
+    }
+  } catch(e){}
+
+  // Google Books
+  try {
+    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+    const data = await res.json();
+    if(data.totalItems > 0){
+      const v = data.items[0].volumeInfo;
+      setResult({title:v.title||'Unknown',subtitle:v.subtitle||'',publisher:v.publisher||'Unknown',date:v.publishedDate||'Unknown',authors:v.authors?.join(', ')||'Unknown',isbn,cover:v.imageLinks?.thumbnail||null,subjects:v.categories?.join(', ')||''}, resultEl);
+      return;
+    }
+  } catch(e){}
+
+  resultEl.innerHTML = '';
+  errorEl.textContent = `No data found for "${isbn}". Try the number on the back of the book near the barcode.`;
+  errorEl.style.display = 'block';
+}
+
+function setResult(info, container){
+  pendingResult = info;
+  selectedStatus = 'owned';
+  container.innerHTML = `
+    <div class="result-card">
+      <div class="result-header">✅ Match Found</div>
+      <div class="result-body">
+        ${info.cover?`<img src="${info.cover}" style="float:right;width:70px;margin-left:12px;border-radius:3px;" onerror="this.style.display='none'">` : ''}
+        <div class="result-title">${info.title}</div>
+        <div class="result-subtitle">${info.subtitle||info.authors}</div>
+        <div class="result-meta">
+          <div class="meta-item"><div class="meta-label">Publisher</div><div class="meta-value">${info.publisher}</div></div>
+          <div class="meta-item"><div class="meta-label">Date</div><div class="meta-value">${info.date}</div></div>
+          <div class="meta-item"><div class="meta-label">Authors</div><div class="meta-value">${info.authors}</div></div>
+          <div class="meta-item"><div class="meta-label">ISBN</div><div class="meta-value" style="font-family:monospace;font-size:0.75rem;">${info.isbn}</div></div>
+        </div>
+        <div style="margin-bottom:8px;">
+          <div style="font-family:IBM Plex Mono,monospace;font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;color:#8a8070;margin-bottom:6px;">Status</div>
+          <div class="status-row">
+            <button class="status-btn selected" id="sb-owned" onclick="setStatus('owned')">Owned</button>
+            <button class="status-btn" id="sb-read" onclick="setStatus('read')">Read</button>
+            <button class="status-btn" id="sb-wishlist" onclick="setStatus('wishlist')">Wishlist</button>
+          </div>
+        </div>
+        <button class="add-btn" onclick="addToCollection()">ADD TO COLLECTION</button>
+      </div>
+    </div>`;
+}
+
+function setStatus(s){
+  selectedStatus = s;
+  ['owned','read','wishlist'].forEach(x=>document.getElementById(`sb-${x}`)?.classList.toggle('selected',x===s));
+}
+
+function addToCollection(){
+  if(!pendingResult) return;
+  if(collection.find(c=>c.isbn===pendingResult.isbn)){ showToast('Already in collection!'); return; }
+  collection.unshift({...pendingResult, status:selectedStatus, added:new Date().toLocaleDateString()});
+  saveCollection();
+  showToast(`Added: ${pendingResult.title}`);
+  pendingResult = null;
+  document.getElementById('scan-result').innerHTML = '';
+  document.getElementById('manual-result').innerHTML = '';
+  document.getElementById('manual-isbn').value = '';
+  document.getElementById('fallback-input').value = '';
+  updateBadge();
+}
+
+function lookupFallback(){
+  const v = document.getElementById('fallback-input').value.trim().replace(/\D/g,'');
+  if(!v) return;
+  lookupISBN(v, document.getElementById('scan-result'), document.getElementById('scan-error'));
+}
+
+function lookupManual(){
+  const v = document.getElementById('manual-isbn').value.trim().replace(/[-\s]/g,'');
+  if(!v) return;
+  lookupISBN(v, document.getElementById('manual-result'), document.getElementById('manual-error'));
+}
+
+document.getElementById('manual-isbn').addEventListener('keydown', e=>{ if(e.key==='Enter') lookupManual(); });
+document.getElementById('fallback-input').addEventListener('keydown', e=>{ if(e.key==='Enter') lookupFallback(); });
+
+function renderCollection(){
+  const el = document.getElementById('collection-list');
+  updateBadge();
+  if(!collection.length){ el.innerHTML='<div class="empty-state"><div class="big">📚</div><p>No comics yet</p></div>'; return; }
+  el.innerHTML = collection.map((c,i)=>`
+    <div class="comic-item ${c.status}">
+      <div>
+        <div class="comic-item-title">${c.title}</div>
+        <div class="comic-item-meta">${c.authors} · ${c.date} · Added ${c.added}</div>
+      </div>
+      <div style="display:flex;align-items:center;flex-shrink:0;margin-left:8px;">
+        <span class="status-pill ${c.status}">${c.status}</span>
+        <button class="delete-btn" onclick="deleteItem(${i})">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function deleteItem(i){ collection.splice(i,1); saveCollection(); renderCollection(); }
+function updateBadge(){ document.getElementById('count-badge').textContent = collection.length; }
+
+function exportCSV(){
+  if(!collection.length){ showToast('Nothing to export yet!'); return; }
+  const rows = collection.map(c=>[`"${c.title}"`,`"${c.authors}"`,`"${c.publisher}"`,`"${c.date}"`,c.isbn,c.status,c.added,`"${c.subjects||''}"`].join(','));
+  const csv = ['Title,Authors,Publisher,Date,ISBN,Status,Added,Subjects',...rows].join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download = 'comics_collection.csv';
+  a.click();
+  showToast('CSV exported!');
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
+updateBadge();
+</script>
+</body>
+</html>
