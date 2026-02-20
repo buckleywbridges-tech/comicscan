@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ComicScan</title>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
   :root{--ink:#0a0a0a;--paper:#f5f0e8;--accent:#e8320a;--accent2:#f5a623;--muted:#8a8070;--border:#d4cfc5;}
@@ -19,23 +18,29 @@
   .tab.active{background:var(--ink);color:var(--accent);}
   .panel{display:none;}.panel.active{display:block;}
 
-  #reader{width:100%;border-radius:8px;overflow:hidden;margin-bottom:12px;}
-  #reader video{border-radius:8px;}
+  .scanner-wrap{position:relative;width:100%;aspect-ratio:4/3;background:#111;border-radius:8px;overflow:hidden;margin-bottom:12px;}
+  #video{width:100%;height:100%;object-fit:cover;display:block;}
+  #canvas{display:none;}
+  .scan-corners{position:absolute;inset:0;pointer-events:none;}
+  .scan-corners::before,.scan-corners::after{content:'';position:absolute;width:28%;height:28%;border-color:var(--accent2);border-style:solid;}
+  .scan-corners::before{top:10%;left:10%;border-width:3px 0 0 3px;}
+  .scan-corners::after{bottom:10%;right:10%;border-width:0 3px 3px 0;}
+  .scan-line{position:absolute;left:12%;right:12%;height:2px;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:scanMove 2s ease-in-out infinite;}
+  @keyframes scanMove{0%,100%{top:25%}50%{top:72%}}
+  .scanner-idle{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);}
+  .scanner-idle .icon{font-size:3rem;margin-bottom:12px;}
+  .scanner-idle p{font-family:'IBM Plex Mono',monospace;font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;}
 
   .btn{width:100%;padding:14px;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;border:none;border-radius:4px;cursor:pointer;margin-bottom:8px;}
   .btn-primary{background:var(--accent);color:white;}
-  .btn-secondary{background:var(--ink);color:var(--paper);}
-
   .fallback-box{background:white;border:2px dashed var(--border);border-radius:6px;padding:14px;margin-bottom:12px;}
   .fallback-label{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
   .fallback-row{display:flex;gap:8px;}
   .fallback-row input{flex:1;padding:9px 12px;border:2px solid var(--border);border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:0.85rem;}
   .fallback-row input:focus{outline:none;border-color:var(--accent);}
   .fallback-row button{padding:9px 16px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;cursor:pointer;}
-
   .error-msg{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 14px;border-radius:4px;font-size:0.82rem;margin-bottom:10px;font-family:'IBM Plex Mono',monospace;}
   .info-msg{background:#f0fdf4;border:1px solid #86efac;color:#166534;padding:10px 14px;border-radius:4px;font-size:0.78rem;margin-bottom:10px;font-family:'IBM Plex Mono',monospace;}
-
   .result-card{background:white;border:2px solid var(--ink);border-radius:8px;overflow:hidden;margin-top:12px;animation:slideUp 0.3s ease;}
   @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   .result-header{background:var(--ink);color:var(--accent2);padding:10px 14px;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;}
@@ -50,7 +55,6 @@
   .status-btn{flex:1;padding:8px;border:2px solid var(--border);border-radius:4px;background:white;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;color:var(--muted);}
   .status-btn.selected{border-color:var(--accent);background:var(--accent);color:white;}
   .add-btn{width:100%;padding:12px;background:var(--accent);color:white;border:none;border-radius:4px;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;cursor:pointer;}
-
   .collection-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
   .collection-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:1px;}
   .count-badge{background:var(--accent);color:white;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;font-weight:600;padding:3px 8px;border-radius:20px;}
@@ -86,9 +90,18 @@
     <button class="tab" onclick="switchTab('collection')">📚 Collection</button>
   </div>
 
-  <!-- SCAN -->
   <div class="panel active" id="panel-scan">
-    <div id="reader"></div>
+    <div class="scanner-wrap">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="canvas"></canvas>
+      <div class="scan-corners" id="scan-corners" style="display:none;">
+        <div class="scan-line"></div>
+      </div>
+      <div class="scanner-idle" id="scanner-idle">
+        <div class="icon">📷</div>
+        <p>Tap Start to scan</p>
+      </div>
+    </div>
     <button class="btn btn-primary" id="scan-btn" onclick="toggleScanner()">START SCANNING</button>
     <div id="scan-status" class="info-msg" style="display:none;"></div>
     <div class="fallback-box">
@@ -102,7 +115,6 @@
     <div id="scan-result"></div>
   </div>
 
-  <!-- MANUAL -->
   <div class="panel" id="panel-manual">
     <div class="input-group">
       <label>ISBN / Barcode Number</label>
@@ -113,7 +125,6 @@
     <div id="manual-result"></div>
   </div>
 
-  <!-- COLLECTION -->
   <div class="panel" id="panel-collection">
     <div class="collection-header">
       <div class="collection-title">My Collection</div>
@@ -128,13 +139,15 @@
 <div class="toast" id="toast"></div>
 
 <script>
-let collection = JSON.parse(localStorage.getItem('comicscan_v3') || '[]');
-let scanner = null;
+let collection = JSON.parse(localStorage.getItem('comicscan_v4') || '[]');
 let scannerRunning = false;
+let stream = null;
+let scanInterval = null;
+let detector = null;
 let pendingResult = null;
 let selectedStatus = 'owned';
 
-function saveCollection(){ localStorage.setItem('comicscan_v3', JSON.stringify(collection)); }
+function saveCollection(){ localStorage.setItem('comicscan_v4', JSON.stringify(collection)); }
 
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['scan','manual','collection'][i]===tab));
@@ -148,53 +161,85 @@ async function toggleScanner(){
 }
 
 async function startScanner(){
-  document.getElementById('scan-btn').textContent = 'STOP SCANNING';
-  document.getElementById('scan-error').style.display = 'none';
-  setStatus_scan('Scanning — hold barcode steady in frame...');
+  document.getElementById('scan-error').style.display='none';
+  document.getElementById('scan-btn').textContent='STOP SCANNING';
+  document.getElementById('scanner-idle').style.display='none';
+  document.getElementById('scan-corners').style.display='block';
+  setStatus('Point camera at barcode...');
+
+  // Check for BarcodeDetector support
+  if(!('BarcodeDetector' in window)){
+    stopScanner();
+    showError('Your browser does not support native barcode detection. Please use the type-in box below.');
+    return;
+  }
 
   try {
-    scanner = new Html5Qrcode("reader");
-    await scanner.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 280, height: 140 } },
-      (decodedText) => {
-        stopScanner();
-        lookupISBN(decodedText, document.getElementById('scan-result'), document.getElementById('scan-error'));
-      },
-      (err) => { /* ignore frame errors */ }
-    );
-    scannerRunning = true;
+    detector = new BarcodeDetector({
+      formats: ['ean_13','ean_8','upc_a','upc_e','isbn','code_128','code_39','qr_code']
+    });
   } catch(e) {
-    document.getElementById('scan-btn').textContent = 'START SCANNING';
-    setStatus_scan('');
-    const el = document.getElementById('scan-error');
-    el.textContent = 'Could not access camera. Make sure you allowed camera permission in Safari, or use the type-in box below.';
-    el.style.display = 'block';
+    detector = new BarcodeDetector();
+  }
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    const video = document.getElementById('video');
+    video.srcObject = stream;
+    await video.play();
+    scannerRunning = true;
+
+    // Poll for barcodes
+    scanInterval = setInterval(async () => {
+      if(!scannerRunning) return;
+      try {
+        const barcodes = await detector.detect(video);
+        if(barcodes.length > 0){
+          const code = barcodes[0].rawValue;
+          if(code && code.length >= 8){
+            stopScanner();
+            lookupISBN(code, document.getElementById('scan-result'), document.getElementById('scan-error'));
+          }
+        }
+      } catch(e){}
+    }, 300);
+
+  } catch(e) {
+    stopScanner();
+    showError('Camera access denied. Check Safari Settings → Camera, or use the type-in box below.');
   }
 }
 
-async function stopScanner(){
-  if(scanner && scannerRunning){
-    try{ await scanner.stop(); } catch(e){}
-    try{ scanner.clear(); } catch(e){}
-    scanner = null;
-  }
+function stopScanner(){
   scannerRunning = false;
-  document.getElementById('scan-btn').textContent = 'START SCANNING';
-  setStatus_scan('');
+  if(scanInterval){ clearInterval(scanInterval); scanInterval = null; }
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; }
+  const video = document.getElementById('video');
+  video.srcObject = null;
+  document.getElementById('scanner-idle').style.display='flex';
+  document.getElementById('scan-corners').style.display='none';
+  document.getElementById('scan-btn').textContent='START SCANNING';
+  setStatus('');
 }
 
-function setStatus_scan(msg){
+function setStatus(msg){
   const el = document.getElementById('scan-status');
-  if(msg){ el.textContent = msg; el.style.display = 'block'; }
-  else { el.style.display = 'none'; }
+  if(msg){ el.textContent=msg; el.style.display='block'; }
+  else { el.style.display='none'; }
+}
+
+function showError(msg){
+  const el = document.getElementById('scan-error');
+  el.textContent = msg;
+  el.style.display = 'block';
 }
 
 async function lookupISBN(isbn, resultEl, errorEl){
-  errorEl.style.display = 'none';
-  resultEl.innerHTML = '<div style="padding:20px;text-align:center;font-family:IBM Plex Mono,monospace;font-size:0.75rem;color:#8a8070;letter-spacing:1px;">LOOKING UP...</div>';
+  errorEl.style.display='none';
+  resultEl.innerHTML='<div style="padding:20px;text-align:center;font-family:IBM Plex Mono,monospace;font-size:0.75rem;color:#8a8070;letter-spacing:1px;">LOOKING UP...</div>';
 
-  // Open Library
   try {
     const res = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
     const data = await res.json();
@@ -206,7 +251,6 @@ async function lookupISBN(isbn, resultEl, errorEl){
     }
   } catch(e){}
 
-  // Google Books
   try {
     const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
     const data = await res.json();
@@ -217,15 +261,15 @@ async function lookupISBN(isbn, resultEl, errorEl){
     }
   } catch(e){}
 
-  resultEl.innerHTML = '';
-  errorEl.textContent = `No data found for "${isbn}". Try the number on the back of the book near the barcode.`;
-  errorEl.style.display = 'block';
+  resultEl.innerHTML='';
+  errorEl.textContent=`No data found for "${isbn}". Try the number printed near the barcode.`;
+  errorEl.style.display='block';
 }
 
 function setResult(info, container){
   pendingResult = info;
   selectedStatus = 'owned';
-  container.innerHTML = `
+  container.innerHTML=`
     <div class="result-card">
       <div class="result-header">✅ Match Found</div>
       <div class="result-body">
@@ -241,9 +285,9 @@ function setResult(info, container){
         <div style="margin-bottom:8px;">
           <div style="font-family:IBM Plex Mono,monospace;font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;color:#8a8070;margin-bottom:6px;">Status</div>
           <div class="status-row">
-            <button class="status-btn selected" id="sb-owned" onclick="setStatus('owned')">Owned</button>
-            <button class="status-btn" id="sb-read" onclick="setStatus('read')">Read</button>
-            <button class="status-btn" id="sb-wishlist" onclick="setStatus('wishlist')">Wishlist</button>
+            <button class="status-btn selected" id="sb-owned" onclick="setStatus_item('owned')">Owned</button>
+            <button class="status-btn" id="sb-read" onclick="setStatus_item('read')">Read</button>
+            <button class="status-btn" id="sb-wishlist" onclick="setStatus_item('wishlist')">Wishlist</button>
           </div>
         </div>
         <button class="add-btn" onclick="addToCollection()">ADD TO COLLECTION</button>
@@ -251,45 +295,45 @@ function setResult(info, container){
     </div>`;
 }
 
-function setStatus(s){
-  selectedStatus = s;
+function setStatus_item(s){
+  selectedStatus=s;
   ['owned','read','wishlist'].forEach(x=>document.getElementById(`sb-${x}`)?.classList.toggle('selected',x===s));
 }
 
 function addToCollection(){
   if(!pendingResult) return;
   if(collection.find(c=>c.isbn===pendingResult.isbn)){ showToast('Already in collection!'); return; }
-  collection.unshift({...pendingResult, status:selectedStatus, added:new Date().toLocaleDateString()});
+  collection.unshift({...pendingResult,status:selectedStatus,added:new Date().toLocaleDateString()});
   saveCollection();
   showToast(`Added: ${pendingResult.title}`);
-  pendingResult = null;
-  document.getElementById('scan-result').innerHTML = '';
-  document.getElementById('manual-result').innerHTML = '';
-  document.getElementById('manual-isbn').value = '';
-  document.getElementById('fallback-input').value = '';
+  pendingResult=null;
+  document.getElementById('scan-result').innerHTML='';
+  document.getElementById('manual-result').innerHTML='';
+  document.getElementById('manual-isbn').value='';
+  document.getElementById('fallback-input').value='';
   updateBadge();
 }
 
 function lookupFallback(){
-  const v = document.getElementById('fallback-input').value.trim().replace(/\D/g,'');
+  const v=document.getElementById('fallback-input').value.trim().replace(/\D/g,'');
   if(!v) return;
-  lookupISBN(v, document.getElementById('scan-result'), document.getElementById('scan-error'));
+  lookupISBN(v,document.getElementById('scan-result'),document.getElementById('scan-error'));
 }
 
 function lookupManual(){
-  const v = document.getElementById('manual-isbn').value.trim().replace(/[-\s]/g,'');
+  const v=document.getElementById('manual-isbn').value.trim().replace(/[-\s]/g,'');
   if(!v) return;
-  lookupISBN(v, document.getElementById('manual-result'), document.getElementById('manual-error'));
+  lookupISBN(v,document.getElementById('manual-result'),document.getElementById('manual-error'));
 }
 
-document.getElementById('manual-isbn').addEventListener('keydown', e=>{ if(e.key==='Enter') lookupManual(); });
-document.getElementById('fallback-input').addEventListener('keydown', e=>{ if(e.key==='Enter') lookupFallback(); });
+document.getElementById('manual-isbn').addEventListener('keydown',e=>{if(e.key==='Enter')lookupManual();});
+document.getElementById('fallback-input').addEventListener('keydown',e=>{if(e.key==='Enter')lookupFallback();});
 
 function renderCollection(){
-  const el = document.getElementById('collection-list');
+  const el=document.getElementById('collection-list');
   updateBadge();
-  if(!collection.length){ el.innerHTML='<div class="empty-state"><div class="big">📚</div><p>No comics yet</p></div>'; return; }
-  el.innerHTML = collection.map((c,i)=>`
+  if(!collection.length){el.innerHTML='<div class="empty-state"><div class="big">📚</div><p>No comics yet</p></div>';return;}
+  el.innerHTML=collection.map((c,i)=>`
     <div class="comic-item ${c.status}">
       <div>
         <div class="comic-item-title">${c.title}</div>
@@ -302,24 +346,24 @@ function renderCollection(){
     </div>`).join('');
 }
 
-function deleteItem(i){ collection.splice(i,1); saveCollection(); renderCollection(); }
-function updateBadge(){ document.getElementById('count-badge').textContent = collection.length; }
+function deleteItem(i){collection.splice(i,1);saveCollection();renderCollection();}
+function updateBadge(){document.getElementById('count-badge').textContent=collection.length;}
 
 function exportCSV(){
-  if(!collection.length){ showToast('Nothing to export yet!'); return; }
-  const rows = collection.map(c=>[`"${c.title}"`,`"${c.authors}"`,`"${c.publisher}"`,`"${c.date}"`,c.isbn,c.status,c.added,`"${c.subjects||''}"`].join(','));
-  const csv = ['Title,Authors,Publisher,Date,ISBN,Status,Added,Subjects',...rows].join('\n');
-  const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download = 'comics_collection.csv';
+  if(!collection.length){showToast('Nothing to export yet!');return;}
+  const rows=collection.map(c=>[`"${c.title}"`,`"${c.authors}"`,`"${c.publisher}"`,`"${c.date}"`,c.isbn,c.status,c.added,`"${c.subjects||''}"`].join(','));
+  const csv=['Title,Authors,Publisher,Date,ISBN,Status,Added,Subjects',...rows].join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='comics_collection.csv';
   a.click();
   showToast('CSV exported!');
 }
 
 function showToast(msg){
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'), 2500);
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
 }
 
 updateBadge();
